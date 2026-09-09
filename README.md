@@ -8,29 +8,29 @@ A robust, multimodal web-based prototype that uses a Large Language Model (LLM) 
 
 Students constantly have questions. Some are simple ("What does polymorphism mean?"), some need a visual explanation ("What does this diagram mean?"), and some genuinely need a human ("Can I appeal my grade?"). Most of the time, students either give up or spam their lecturers with questions that could have been answered in 30 seconds.
 
-This tool acts as an **intelligent first point of contact**. It uses an LLM to perceive what a student is asking (via text or image) and makes a definitive decision on what to do next.
+This tool acts as an **intelligent first point of contact**. It uses an LLM to perceive what a student is asking (via text or image), remember the conversation context, and make a definitive decision on what to do next.
 
 ---
 
 ## 🛠️ What It Does
 
-When you type a question or upload an image, the AI Agent kicks in:
+When you type a question or upload an image into the chat interface, the AI Agent kicks in:
 
 1. **Classification (Perception)** — It reads the text and/or analyzes the uploaded image to understand the core intent. *"Is this something an AI can safely answer, or does this student need to talk to a real person?"*
-2. **Academic Answer & Resources (Action)** — If it can answer, it generates a clear, conversational, and academic-level response. It also extracts the core topic and dynamically picks 3 relevant learning resources.
-3. **Escalation (Action)** — If it cannot answer, it explicitly refuses and directs the student to the correct human channel (e.g., student services, module leader).
-4. **Conversational Fallback** — It handles conversational inputs ("hello", "how are you?") gracefully without forcing irrelevant academic links, making it feel like a natural chat.
+2. **Academic Answer & Resources (Action)** — If it can answer, it generates a clear, conversational, and academic-level response in the main chat feed. It also extracts the core topic and dynamically populates the **Recommended Resources** sidebar.
+3. **Escalation (Action)** — If it cannot answer, it explicitly refuses and updates the **Query Status** sidebar to direct the student to the correct human channel (e.g., student services, module leader).
+4. **Conversational Memory** — It remembers previous messages in the session, allowing students to ask follow-up questions seamlessly like ChatGPT.
 
 ---
 
 ## 🧠 How the LLM Actually Works
 
-We use **Google Gemini (gemini-3.8-flash)**, accessed natively via the Gemini REST API for ultra-fast, reliable, and multimodal inference.
+We use **NVIDIA NIM (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`)**, accessed natively via the NVIDIA API for ultra-fast, reliable, and reasoning-based inference.
 
 The true intelligence comes from **Strict Prompt Engineering & JSON Forcing**:
-Every student query is wrapped in a robust **system prompt** that defines the assistant's persona, its exact escalation boundaries, and its output schema.
+Every student query, along with the conversation history, is wrapped in a robust **system prompt** that defines the assistant's persona, its exact escalation boundaries, and its output schema.
 
-We enforce `responseMimeType: application/json` to make the model return **machine-readable JSON every single time**. This means the AI is performing three complex tasks in a single API call:
+We enforce the model to return **machine-readable JSON every single time**. This means the AI is performing three complex tasks in a single API call:
 - **Classification** (Boolean: `can_ai_answer`)
 - **Generation** (String: `answer`)
 - **Extraction** (Array: `resources`, String: `topic`)
@@ -44,7 +44,7 @@ This is what makes it an **AI Agent** rather than just a chatbot wrapper. It per
 The system doesn't just read text; it can see.
 Students can click the 🖼️ icon to upload a photo of a textbook, a handwritten math problem, or a lecture diagram. 
 
-In the browser, the image is converted to a base64 string and sent directly to the Gemini vision model alongside the text prompt. The model analyzes both modalities simultaneously to provide an accurate, context-aware answer.
+In the browser, the image is converted to a base64 string and sent directly to the vision model alongside the text prompt. The model analyzes both modalities simultaneously to provide an accurate, context-aware answer right in the chat feed.
 
 ---
 
@@ -69,7 +69,7 @@ Additionally, we built in an **empathy safety net**. If a student asks about a s
 |---|---|
 | **Frontend** | HTML, Vanilla CSS, JavaScript (Vanilla DOM manipulation) |
 | **Backend** | Python + Flask |
-| **LLM Engine** | Google Gemini (gemini-3.8-flash) via REST API |
+| **LLM Engine** | NVIDIA NIM API (`nemotron-3-nano-omni-30b-a3b-reasoning`) |
 | **Hosting** | Vercel (Static frontend + Serverless Flask backend) |
 
 ---
@@ -78,7 +78,7 @@ Additionally, we built in an **empathy safety net**. If a student asks about a s
 
 **Prerequisites:**
 - Python 3.9+
-- A Google Gemini API key
+- An NVIDIA NIM API key
 
 ```bash
 # Clone the repository
@@ -90,7 +90,7 @@ pip install -r requirements.txt
 
 # Add your API key
 # Create a .env file in the root directory and add:
-# GEMINI_API_KEY=your_key_here
+# NVIDIA_API_KEY=your_key_here
 
 # Run the backend
 python app.py
@@ -103,6 +103,6 @@ python app.py
 ## ⚠️ Known Limitations
 
 - **Hallucination:** Like all LLMs, the model can confidently state incorrect facts. A disclaimer is prominently displayed in the UI.
-- **No Memory:** The current implementation is stateless. Each question is treated independently, keeping the architecture simple but limiting deep follow-up conversations.
+- **Session-Only Memory:** The conversation history is only remembered for the current session and resets upon page reload.
 - **No Institutional Access:** The model knows nothing about a specific university's systems, meaning it cannot access real grades, timetables, or student records.
 - **AI-Generated URLs:** The suggested resource links are generated by the model based on its training data. While typically accurate (e.g., Wikipedia, Khan Academy), they are not verified by a live search engine.
