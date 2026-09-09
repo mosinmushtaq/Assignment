@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Learner Assistant - Main Application
 =========================================
 Flask app served at the project root.
@@ -60,7 +60,14 @@ When a student asks a question, respond ONLY with a valid JSON object in this ex
   ]
 }
 
-ESCALATION RULES - set can_ai_answer to false and fill escalate_reason if the question involves:
+CRITICAL: DO NOT ESCALATE general academic questions! 
+You MUST set "can_ai_answer": true for ALL questions about:
+- Explaining concepts, theories, or definitions (e.g., Recursion, Big O, Math, Science)
+- Programming, coding help, or debugging
+- Describing or explaining an uploaded image
+Only escalate if the request strictly falls into the specific administrative/personal categories below.
+
+ESCALATION RULES - set can_ai_answer to false and fill escalate_reason ONLY if the question involves:
 - Grade disputes, re-marking requests, or academic appeals
 - Exam timetable issues, enrollment, or registration problems
 - Personal, medical, or extenuating circumstances
