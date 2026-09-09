@@ -1,106 +1,143 @@
 ﻿# AI Learner Assistant 🎓
 
-An AI-powered prototype that helps university students with academic queries using Google Gemini.
+A simple web-based prototype that uses a Large Language Model (LLM) to help university students get quick answers to academic questions — without having to wait for a lecturer to reply to an email.
 
-## What it does
+---
 
-| Feature | Description |
+## The Idea
+
+Students constantly have questions. Some are simple ("What does polymorphism mean?"), some need a resource ("Where can I learn Big O notation?"), and some genuinely need a human ("Can I appeal my grade?"). The problem is — most of the time, students either give up or spam their lecturers with questions that could have been answered in 30 seconds.
+
+This tool tries to fix that by acting as a first point of contact. It uses an LLM to understand what a student is asking and decide what to do next.
+
+---
+
+## What It Does
+
+When you type a question, three things happen:
+
+1. **The LLM classifies your question** — it reads what you wrote and decides: *"Is this something I can actually answer, or does this student need to talk to a real person?"*
+2. **If it can answer** — it generates a clear, academic-level response and also picks 3 relevant learning resources based on the topic.
+3. **If it can't answer** — it tells you why and directs you to contact your faculty or student services. Things like grade appeals, medical circumstances, or anything involving your personal records are always escalated to a human.
+
+---
+
+## How the LLM Actually Works Here
+
+We use **Groq** (which hosts open-weight models and runs them insanely fast) with the **Qwen 3.8 27B** model.
+
+The way we use the LLM is through **prompt engineering**. Every time a student asks something, we don't just forward the question to the model raw. We wrap it in a carefully written **system prompt** that:
+
+- Tells the model its role (a university learner assistant)
+- Gives it strict rules on what counts as an escalation case
+- Instructs it to respond **only** in a structured JSON format
+
+That last point is important. We use `response_format: json_object` to force the model to return machine-readable output every time, rather than free-form text. This makes our backend able to reliably parse the answer, the resources, and the escalation flag without any guesswork.
+
+So the LLM is doing three jobs in a single call:
+- **Classification** (can AI handle this?)
+- **Generation** (write the answer)
+- **Extraction** (identify the topic, find resources)
+
+This is what makes it more than just a chatbot — it's making decisions, not just responding.
+
+---
+
+## Why This Qualifies as an AI Agent
+
+An AI Agent is a system that perceives its environment, makes decisions, and takes different actions based on those decisions.
+
+Our system does exactly that:
+- It **perceives** the student's question
+- It **reasons** about whether the question is AI-appropriate or not (the classification step)
+- It **acts** differently based on that decision — either answering with resources, or escalating to a human
+
+The routing logic (answer vs. escalate) is what makes this agentic. It's not just a search engine or a chatbot wrapper — it decides what to do.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| **Q&A** | Answers academic and course-related questions using Gemini AI |
-| **Resource Recommendation** | Suggests 3 relevant learning resources per query |
-| **Escalation** | Detects queries that need a human (grades, admin, personal issues) and directs the student accordingly |
+| Frontend | HTML, CSS, Vanilla JavaScript |
+| Backend | Python + Flask |
+| LLM | Qwen 3.8 27B via Groq API |
+| Hosting | Vercel (frontend + Flask serverless) |
 
-## How to Run Locally
+---
 
-### Prerequisites
-- Python 3.9+
-- A Google Gemini API key ([get one free here](https://aistudio.google.com/apikey))
+## How to Run It Locally
 
-### Steps
+**You'll need:**
+- Python 3.9 or above
+- A Groq API key (free at [console.groq.com](https://console.groq.com))
 
 ```bash
-# 1. Clone the repository
-git clone <your-repo-url>
+# Clone the repo
+git clone https://github.com/mosinmushtaq/Assignment.git
 cd Assignment
 
-# 2. Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 3. Set your Gemini API key as an environment variable
-# On Windows (PowerShell):
-$env:GEMINI_API_KEY = "your-api-key-here"
+# Add your API key
+# Create a .env file and add:
+# GROQ_API_KEY=your_key_here
 
-# On Mac/Linux:
-export GEMINI_API_KEY="your-api-key-here"
+# Run the app
+python app.py
 
-# 4. Run the app
-python api/chat.py
-
-# 5. Open your browser and go to:
-#    http://localhost:5000
+# Open http://localhost:5000
 ```
 
-## How to Deploy on Vercel
-
-1. Push this repository to GitHub
-2. Go to [vercel.com](https://vercel.com) → Import Project → select your repo
-3. In **Environment Variables**, add:
-   - Key: `GEMINI_API_KEY`
-   - Value: your Gemini API key
-4. Click **Deploy** — done!
+---
 
 ## Project Structure
 
 ```
 Assignment/
-├── index.html        ← Main web page (dashboard UI)
-├── style.css         ← All styling
-├── script.js         ← Frontend logic (calls API, renders results)
-├── api/
-│   └── chat.py       ← Python backend (Flask + Gemini API)
+├── app.py            ← Flask backend + all LLM logic
+├── index.html        ← The web UI
+├── style.css         ← Styling
+├── script.js         ← Handles API calls and renders results
 ├── requirements.txt  ← Python dependencies
-├── vercel.json       ← Vercel deployment configuration
-└── README.md         ← This file
+└── .env              ← Your API key (never committed to git)
 ```
 
-## Dependencies Used
+---
 
-| Dependency | Version | Purpose |
-|---|---|---|
-| `flask` | 3.0.3 | Python web framework — handles HTTP requests |
-| `google-generativeai` | 0.8.3 | Official Google SDK for Gemini API |
+## Limitations We Know About
 
-## How GenAI is Used
+**Hallucination** — Like all LLMs, the model can confidently say something that is wrong. We add a disclaimer in the UI, but students should always double-check important information.
 
-This prototype uses **Google Gemini 1.5 Flash** for two things:
+**No memory** — Each question is treated independently. The model has no idea what you asked 10 seconds ago. This keeps things simple but means it can't handle follow-up questions well.
 
-1. **Classification**: Gemini reads the student's question and decides whether it can be answered by AI, or whether it needs to be escalated to a faculty member.
-2. **Answer Generation**: If the question is AI-appropriate, Gemini generates a clear academic answer and identifies the topic.
-3. **Resource Recommendation**: Gemini suggests 3 relevant learning resources (with URLs) based on the detected topic.
+**No access to real data** — The model knows nothing about your actual grades, timetable, or enrolled modules. It only knows what you type. That's why anything student-record-related is always escalated.
 
-All three steps happen in a **single API call** — we send a carefully crafted prompt and ask Gemini to return a structured JSON object.
+**Resource links** — The model suggests real-sounding URLs but it doesn't browse the web. Links are based on its training data and are usually correct, but occasionally they may not lead exactly where expected.
 
-## What Makes it an AI Agent
+---
 
-This system qualifies as an AI Agent because it:
-- **Perceives** the student's input (the question)
-- **Decides** (classification step: AI or human?)
-- **Acts** differently based on the decision (answer vs. escalate)
-- **Uses tools** (Gemini for reasoning, resource recommender for links)
+## When the AI Steps Back
 
-## Known Limitations
+The system is explicitly designed to refuse certain questions and push them to a human. This includes:
 
-1. **Hallucination** — Gemini may occasionally generate incorrect information. Students should verify important answers.
-2. **No Memory** — Each question is independent; the AI has no context from previous questions.
-3. **No Access to Records** — The AI cannot see grades, timetables, or any institutional data.
-4. **Resource URL Accuracy** — Suggested links are AI-generated and may occasionally be inaccurate.
-
-## When AI Escalates to a Human
-
-The AI will always direct the student to a faculty member when the query involves:
 - Grade disputes or re-marking requests
-- Exam timetable or enrollment issues
-- Personal/medical extenuating circumstances
-- Fee payments, financial aid, or scholarships
-- Student records, transcripts, or certificates
-- Harassment, wellbeing, or pastoral care concerns
+- Exam or coursework deadline extensions
+- Personal or medical extenuating circumstances
+- Anything about fees, enrolment, or student records
+- Wellbeing or pastoral concerns
+
+This is a deliberate design choice. An LLM should not be making judgements on sensitive academic or personal matters. Those need a real person with context, authority, and accountability.
+
+---
+
+## Dependencies
+
+```
+flask==3.0.3          # Python web framework
+groq==0.11.0          # Groq SDK for LLM API calls
+httpx==0.27.2         # HTTP client (pinned for Python 3.14 compatibility)
+python-dotenv==1.0.1  # Loads .env file for local development
+```
