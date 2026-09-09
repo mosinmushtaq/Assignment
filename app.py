@@ -1,10 +1,10 @@
-"""
+﻿"""
 AI Learner Assistant - Main Application
 =========================================
 Flask app served at the project root.
 Vercel auto-detects app.py as the Flask entrypoint.
 
-Uses Google Gemini to:
+Uses Groq (LLaMA 3.3 70B) to:
   1. Classify whether a question can be answered by AI or needs a human
   2. Generate an academic answer (if AI can handle it)
   3. Recommend relevant learning resources based on the topic
@@ -12,9 +12,8 @@ Uses Google Gemini to:
 
 import os
 import json
-import re
 from flask import Flask, request, jsonify
-import google.generativeai as genai
+from groq import Groq
 from dotenv import load_dotenv
 
 # Load .env file automatically when running locally
@@ -26,17 +25,17 @@ load_dotenv()
 # from the same root directory as app.py
 app = Flask(__name__, static_folder='.', static_url_path='')
 
-# --- Gemini Setup ---
+# --- Groq Setup ---
 # The API key is stored as an environment variable (never hardcoded)
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-3.6-flash")
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+MODEL = "llama-3.3-70b-versatile"  # Fast, free, high-quality model from Groq
 
 # --- System Prompt ---
-# This is the instruction we give Gemini every time a student asks a question.
+# This is the instruction we give the AI every time a student asks a question.
 # We ask it to return structured JSON so our code can parse and display it cleanly.
 SYSTEM_PROMPT = """You are an AI Learner Assistant helping university students with academic and course-related queries.
 
-When a student asks a question, respond ONLY with a valid JSON object in this exact format (no extra text, no markdown):
+When a student asks a question, respond ONLY with a valid JSON object in this exact format:
 {
   "can_ai_answer": true,
   "escalate_reason": "",
@@ -94,18 +93,18 @@ def chat():
     question = data['question'].strip()
 
     try:
-        # Build the full prompt: system instructions + student question
-        full_prompt = f"{SYSTEM_PROMPT}\n\nStudent question: {question}"
+        # Call Groq with JSON mode — guarantees valid JSON output every time
+        completion = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": f"Student question: {question}"}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.4
+        )
 
-        # Call Gemini
-        response = model.generate_content(full_prompt)
-        raw_text = response.text.strip()
-
-        # Gemini sometimes wraps JSON in markdown code blocks - clean that up
-        raw_text = re.sub(r'^```(?:json)?\s*', '', raw_text)
-        raw_text = re.sub(r'\s*```$', '', raw_text)
-
-        # Parse the JSON response from Gemini
+        raw_text = completion.choices[0].message.content.strip()
         result = json.loads(raw_text)
 
         return _cors_response(jsonify(result))
