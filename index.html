@@ -1,0 +1,188 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Learner Assistant – Your Academic Companion</title>
+  <meta name="description" content="An AI-powered assistant that answers academic questions, recommends learning resources, and knows when to escalate to a faculty member." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🎓</span>
+        <div>
+          <h1 class="logo-title">AI Learner Assistant</h1>
+          <p class="logo-sub">Powered by Google Gemini</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <a href="#how-it-works" class="nav-link">How it Works</a>
+        <a href="#limitations" class="nav-link">Limitations</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== HERO / INPUT SECTION ===== -->
+  <main>
+    <section class="hero">
+      <h2 class="hero-title">Ask anything about your course</h2>
+      <p class="hero-sub">
+        I can answer academic questions, recommend learning resources, and let you know
+        when your query needs a real person from the academic team.
+      </p>
+
+      <!-- Query Input -->
+      <div class="input-card">
+        <div class="input-row">
+          <textarea
+            id="question-input"
+            class="question-textarea"
+            placeholder="e.g. What is the difference between machine learning and deep learning?"
+            rows="3"
+            aria-label="Enter your academic question"
+          ></textarea>
+          <button id="ask-btn" class="ask-btn" onclick="handleAsk()">
+            <span class="btn-text">Ask AI</span>
+            <span class="btn-icon">→</span>
+          </button>
+        </div>
+
+        <!-- Example chips -->
+        <div class="example-chips">
+          <span class="chip-label">Try:</span>
+          <button class="chip" onclick="setQuestion('What is recursion in programming?')">Recursion in programming</button>
+          <button class="chip" onclick="setQuestion('Can you explain Big O notation?')">Big O notation</button>
+          <button class="chip" onclick="setQuestion('I want to appeal my exam grade.')">Appeal exam grade</button>
+          <button class="chip" onclick="setQuestion('What are the types of machine learning?')">Types of ML</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LOADING STATE ===== -->
+    <div id="loading" class="loading-state hidden">
+      <div class="spinner"></div>
+      <p>Thinking<span class="dots">...</span></p>
+    </div>
+
+    <!-- ===== RESULTS DASHBOARD ===== -->
+    <section id="results" class="results-grid hidden">
+
+      <!-- Card 1: AI Answer -->
+      <div class="result-card card-answer" id="card-answer">
+        <div class="card-header">
+          <span class="card-icon">💬</span>
+          <h3 class="card-title">AI Answer</h3>
+          <span id="answer-badge" class="badge badge-ai">AI Generated</span>
+        </div>
+        <div class="card-body" id="answer-body">
+          <!-- Populated by script.js -->
+        </div>
+      </div>
+
+      <!-- Card 2: Resources -->
+      <div class="result-card card-resources" id="card-resources">
+        <div class="card-header">
+          <span class="card-icon">📚</span>
+          <h3 class="card-title">Recommended Resources</h3>
+          <span id="topic-badge" class="badge badge-topic"></span>
+        </div>
+        <div class="card-body" id="resources-body">
+          <!-- Populated by script.js -->
+        </div>
+      </div>
+
+      <!-- Card 3: Escalation Status -->
+      <div class="result-card card-status" id="card-status">
+        <div class="card-header">
+          <span class="card-icon" id="status-icon">👤</span>
+          <h3 class="card-title">Query Status</h3>
+        </div>
+        <div class="card-body" id="status-body">
+          <!-- Populated by script.js -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== HOW IT WORKS ===== -->
+    <section class="info-section" id="how-it-works">
+      <h2 class="section-title">How It Works</h2>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h4>You Ask</h4>
+          <p>Type any academic or course-related question into the input box.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h4>AI Classifies</h4>
+          <p>Gemini decides: can AI handle this, or does it need a faculty member?</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h4>Answer + Resources</h4>
+          <p>If AI can help, you get a detailed answer plus 3 learning resources.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <h4>Escalate if Needed</h4>
+          <p>For grade disputes, personal issues, or admin queries — you're directed to a human.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LIMITATIONS ===== -->
+    <section class="info-section limitations-section" id="limitations">
+      <h2 class="section-title">⚠️ Known Limitations</h2>
+      <p class="limitations-intro">
+        This AI prototype is designed to assist, not replace, academic support. Be aware of the following:
+      </p>
+      <div class="limitations-grid">
+        <div class="limitation-item">
+          <span class="limit-icon">🌀</span>
+          <div>
+            <strong>Hallucination</strong>
+            <p>The AI may occasionally generate incorrect or made-up information. Always verify important facts.</p>
+          </div>
+        </div>
+        <div class="limitation-item">
+          <span class="limit-icon">🧠</span>
+          <div>
+            <strong>No Memory</strong>
+            <p>Each question is answered independently. The AI has no memory of previous questions in the session.</p>
+          </div>
+        </div>
+        <div class="limitation-item">
+          <span class="limit-icon">🔒</span>
+          <div>
+            <strong>No Access to Records</strong>
+            <p>The AI cannot access student records, grades, timetables, or any institutional systems.</p>
+          </div>
+        </div>
+        <div class="limitation-item">
+          <span class="limit-icon">🔗</span>
+          <div>
+            <strong>Resource URLs</strong>
+            <p>Suggested resource links are AI-generated. While typically accurate, some links may not always be exact.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="site-footer">
+    <p>AI Learner Assistant &mdash; Built with Python, Flask &amp; Google Gemini &mdash; Academic Prototype</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
