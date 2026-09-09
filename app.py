@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Learner Assistant - Main Application
 =========================================
 Flask app served at the project root.
@@ -28,7 +28,7 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 # --- Groq Setup ---
 # The API key is stored as an environment variable (never hardcoded)
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL = "llama-3.3-70b-versatile"  # Fast, free, high-quality model from Groq
+MODEL = "llama3-70b-8192"  # Fast, free, high-quality model from Groq
 
 # --- System Prompt ---
 # This is the instruction we give the AI every time a student asks a question.
