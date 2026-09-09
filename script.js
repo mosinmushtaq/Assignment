@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AI Learner Assistant — Frontend Logic
  * =========================================
  * This file handles:
@@ -48,20 +48,26 @@ async function handleAsk() {
       body: JSON.stringify({ question })
     });
 
+    // Try to parse the response body regardless of status
+    const data = await response.json().catch(() => null);
+
     if (!response.ok) {
-      throw new Error(`Server error: ${response.status}`);
+      // Show the actual server error message if available
+      const msg = data?.error || `Server error ${response.status}: ${response.statusText}`;
+      showError(msg);
+      console.error('Server error:', response.status, data);
+      return;
     }
 
-    const data = await response.json();
-
-    if (data.error) {
+    if (data?.error) {
       showError(data.error);
     } else {
       renderResults(data);
     }
 
   } catch (err) {
-    showError('Could not connect to the AI. Please check your connection and try again.');
+    // Only a true network failure reaches here
+    showError('Network error — could not reach the server. Is it running?');
     console.error(err);
   } finally {
     setLoading(false);
