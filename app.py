@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Learner Assistant - Main Application
 =========================================
 Flask app served at the project root.
@@ -22,10 +22,10 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
-# --- Gemini API Setup ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY") # Fallback just in case
-MODEL = "gemini-3.8-flash"
-API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={GEMINI_API_KEY}"
+# --- NVIDIA NIM API Setup ---
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY")
+MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 
 SYSTEM_PROMPT = """You are an AI Learner Assistant helping university students with academic and course-related queries.
 
@@ -71,39 +71,36 @@ If a user asks about sensitive but general topics (like extreme self-isolation),
 Keep answers clear, conversational, and appropriate for a university student."""
 
 def extract_json(raw: str) -> str:
+    raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL)
     raw = re.sub(r'^```(?:json)?\s*', '', raw.strip())
     raw = re.sub(r'\s*```$', '', raw)
     return raw.strip()
 
-def call_gemini(question: str, image_data: str = None) -> str:
-    parts = [{"text": f"Student question: {question}"}]
+def call_nim(messages: list) -> str:
+    # Inject system prompt at the beginning
+    payload_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
     
-    if image_data:
-        # image_data is "data:image/jpeg;base64,/9j/4AAQ..."
-        if "," in image_data:
-            mime_part, b64_part = image_data.split(",", 1)
-            mime_type = mime_part.split(":")[1].split(";")[0]
-            parts.append({
-                "inlineData": {
-                    "mimeType": mime_type,
-                    "data": b64_part
-                }
-            })
-
     payload = {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": [{"role": "user", "parts": parts}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "temperature": 0.4
-        }
+        "model": MODEL,
+        "messages": payload_messages,
+        "max_tokens": 1024,
+        "reasoning_budget": 512,
+        "temperature": 0.4
     }
     
-    resp = http_requests.post(API_URL, json=payload, timeout=60)
+    key = os.environ.get("NVIDIA_API_KEY") or "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"
+    
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    resp = http_requests.post(API_URL, headers=headers, json=payload, timeout=60)
     resp.raise_for_status()
     
     data = resp.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+    return data["choices"][0]["message"]["content"]
 
 @app.route('/')
 def index():
@@ -115,14 +112,27 @@ def chat():
         return _cors_response(jsonify({}))
 
     data = request.get_json(silent=True)
-    if not data or not data.get('question', '').strip():
-        return _cors_response(jsonify({'error': 'Please provide a question.'}), 400)
+    if not data or 'messages' not in data:
+        return _cors_response(jsonify({'error': 'Please provide a conversation history.'}), 400)
 
-    question = data['question'].strip()
+    messages = data['messages']
+    if not messages:
+        return _cors_response(jsonify({'error': 'Conversation is empty.'}), 400)
+
+    # If there's an image, inject it into the final user message
     image_data = data.get('image')
+    if image_data:
+        last_msg = messages[-1]
+        if last_msg.get('role') == 'user':
+            text_content = last_msg.get('content', '')
+            # Convert string content to multimodal array format
+            last_msg['content'] = [
+                {"type": "text", "text": text_content},
+                {"type": "image_url", "image_url": {"url": image_data}}
+            ]
 
     try:
-        raw_text = call_gemini(question, image_data)
+        raw_text = call_nim(messages)
         cleaned  = extract_json(raw_text)
         result   = json.loads(cleaned)
         return _cors_response(jsonify(result))

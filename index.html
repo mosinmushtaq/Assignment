@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -23,97 +23,95 @@
         </div>
       </div>
       <nav class="header-nav">
-        <a href="#how-it-works" class="nav-link">How it Works</a>
-        <a href="#limitations" class="nav-link">Limitations</a>
+        <a href="#" class="nav-link" onclick="location.reload(); return false;">New Chat</a>
       </nav>
     </div>
   </header>
 
-  <!-- ===== HERO / INPUT SECTION ===== -->
-  <main>
-    <section class="hero">
-      <h2 class="hero-title">Ask anything about your course</h2>
-      <p class="hero-sub">
-        I can answer academic questions, recommend learning resources, and let you know
-        when your query needs a real person from the academic team.
-      </p>
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main class="chat-layout">
+    
+    <!-- LEFT COLUMN: Chat Interface -->
+    <section class="chat-main">
+      
+      <!-- Welcome Hero (hidden after first message) -->
+      <div class="hero-header" id="hero-header">
+        <h2 class="hero-title">Ask anything about your course</h2>
+        <p class="hero-sub">
+          I can answer academic questions, recommend learning resources, and let you know
+          when your query needs a real person from the academic team.
+        </p>
+      </div>
 
-      <!-- Query Input -->
-      <div class="input-card">
+      <!-- Chat History Feed -->
+      <div id="chat-history" class="chat-history">
+        <!-- Messages appended here by script.js -->
+      </div>
 
-        <!-- Image preview (hidden until image is selected) -->
-        <div id="image-preview-wrap" class="image-preview-wrap hidden">
-          <img id="image-preview" class="image-preview" alt="Uploaded image preview" />
-          <button class="remove-image-btn" onclick="removeImage()" title="Remove image">✕</button>
-          <span class="image-label">📎 Image attached</span>
-        </div>
+      <!-- Loading State -->
+      <div id="loading" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p>Thinking<span class="dots">...</span></p>
+      </div>
 
-        <div class="input-row">
-          <div class="textarea-wrap">
-            <!-- Hidden file input -->
-            <input
-              type="file"
-              id="image-input"
-              accept="image/*"
-              style="display:none"
-              onchange="handleImageUpload(event)"
-            />
-            <!-- Upload trigger button -->
-            <button
-              class="upload-btn"
-              onclick="document.getElementById('image-input').click()"
-              title="Attach an image (photo of notes, question, diagram etc.)"
-              id="upload-btn"
-            >🖼️</button>
-            <textarea
-              id="question-input"
-              class="question-textarea"
-              placeholder="e.g. What is the difference between machine learning and deep learning? (you can also attach an image)"
-              rows="3"
-              aria-label="Enter your academic question"
-            ></textarea>
+      <!-- Input Area (Pinned to bottom of chat-main) -->
+      <div class="input-container">
+        <div class="input-card">
+          <!-- Image preview -->
+          <div id="image-preview-wrap" class="image-preview-wrap hidden">
+            <img id="image-preview" class="image-preview" alt="Uploaded image preview" />
+            <button class="remove-image-btn" onclick="removeImage()" title="Remove image">✕</button>
+            <span class="image-label">📎 Image attached</span>
           </div>
-          <button id="ask-btn" class="ask-btn" onclick="handleAsk()">
-            <span class="btn-text">Ask AI</span>
-            <span class="btn-icon">→</span>
-          </button>
-        </div>
 
-        <!-- Example chips -->
-        <div class="example-chips">
-          <span class="chip-label">Try:</span>
-          <button class="chip" onclick="setQuestion('What is recursion in programming?')">Recursion in programming</button>
-          <button class="chip" onclick="setQuestion('Can you explain Big O notation?')">Big O notation</button>
-          <button class="chip" onclick="setQuestion('I want to appeal my exam grade.')">Appeal exam grade</button>
-          <button class="chip" onclick="setQuestion('What are the types of machine learning?')">Types of ML</button>
-          <button class="chip" onclick="setQuestion('Explain what you see in this image.')">📎 Upload &amp; ask</button>
+          <div class="input-row">
+            <div class="textarea-wrap">
+              <input type="file" id="image-input" accept="image/*" style="display:none" onchange="handleImageUpload(event)" />
+              <button class="upload-btn" onclick="document.getElementById('image-input').click()" title="Attach an image" id="upload-btn">🖼️</button>
+              <textarea id="question-input" class="question-textarea" placeholder="Message Learner Assistant..." rows="1" aria-label="Enter your academic question"></textarea>
+            </div>
+            <button id="ask-btn" class="ask-btn" onclick="handleAsk()">
+              <span class="btn-icon">↑</span>
+            </button>
+          </div>
+
+          <!-- Example chips (hidden after first message) -->
+          <div class="example-chips" id="example-chips">
+            <span class="chip-label">Try:</span>
+            <button class="chip" onclick="setQuestion('What is recursion in programming?')">Recursion in programming</button>
+            <button class="chip" onclick="setQuestion('Can you explain Big O notation?')">Big O notation</button>
+            <button class="chip" onclick="setQuestion('I want to appeal my exam grade.')">Appeal exam grade</button>
+            <button class="chip" onclick="setQuestion('What are the types of machine learning?')">Types of ML</button>
+          </div>
         </div>
+        <p class="footer-note">AI can make mistakes. Check important info.</p>
       </div>
     </section>
 
-    <!-- ===== LOADING STATE ===== -->
-    <div id="loading" class="loading-state hidden">
-      <div class="spinner"></div>
-      <p>Thinking<span class="dots">...</span></p>
-    </div>
-
-    <!-- ===== RESULTS DASHBOARD ===== -->
-    <section id="results" class="results-grid hidden">
-
-      <!-- Card 1: AI Answer -->
-      <div class="result-card card-answer" id="card-answer">
-        <div class="card-header">
-          <span class="card-icon">💬</span>
-          <h3 class="card-title">AI Answer</h3>
-          <span id="answer-badge" class="badge badge-ai">AI Generated</span>
+    <!-- RIGHT COLUMN: Sidebar (Resources & Status) -->
+    <aside class="chat-sidebar" id="chat-sidebar">
+      
+      <!-- Placeholder when empty -->
+      <div id="sidebar-placeholder" class="sidebar-placeholder">
+        <div class="sidebar-empty-state">
+          <span class="empty-icon">💡</span>
+          <p>Context and resources will appear here once we start chatting.</p>
         </div>
-        <div class="card-body" id="answer-body">
+      </div>
+
+      <!-- Card: Escalation Status -->
+      <div class="result-card card-status hidden" id="card-status">
+        <div class="card-header">
+          <span class="card-icon" id="status-icon">👤</span>
+          <h3 class="card-title">Query Status</h3>
+        </div>
+        <div class="card-body" id="status-body">
           <!-- Populated by script.js -->
         </div>
       </div>
 
-      <!-- Card 2: Resources -->
-      <div class="result-card card-resources" id="card-resources">
+      <!-- Card: Resources -->
+      <div class="result-card card-resources hidden" id="card-resources">
         <div class="card-header">
           <span class="card-icon">📚</span>
           <h3 class="card-title">Recommended Resources</h3>
@@ -124,90 +122,18 @@
         </div>
       </div>
 
-      <!-- Card 3: Escalation Status -->
-      <div class="result-card card-status" id="card-status">
-        <div class="card-header">
-          <span class="card-icon" id="status-icon">👤</span>
-          <h3 class="card-title">Query Status</h3>
-        </div>
-        <div class="card-body" id="status-body">
-          <!-- Populated by script.js -->
-        </div>
+      <!-- Limitations Box -->
+      <div class="limitations-box">
+        <h4>⚠️ Known Limitations</h4>
+        <ul>
+          <li><strong>Hallucination:</strong> May generate incorrect info.</li>
+          <li><strong>No Records:</strong> Cannot access your actual grades.</li>
+        </ul>
       </div>
 
-    </section>
-
-    <!-- ===== HOW IT WORKS ===== -->
-    <section class="info-section" id="how-it-works">
-      <h2 class="section-title">How It Works</h2>
-      <div class="steps-grid">
-        <div class="step">
-          <div class="step-num">1</div>
-          <h4>You Ask</h4>
-          <p>Type any academic or course-related question into the input box.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <h4>AI Classifies</h4>
-          <p>Gemini decides: can AI handle this, or does it need a faculty member?</p>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <h4>Answer + Resources</h4>
-          <p>If AI can help, you get a detailed answer plus 3 learning resources.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <h4>Escalate if Needed</h4>
-          <p>For grade disputes, personal issues, or admin queries — you're directed to a human.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== LIMITATIONS ===== -->
-    <section class="info-section limitations-section" id="limitations">
-      <h2 class="section-title">⚠️ Known Limitations</h2>
-      <p class="limitations-intro">
-        This AI prototype is designed to assist, not replace, academic support. Be aware of the following:
-      </p>
-      <div class="limitations-grid">
-        <div class="limitation-item">
-          <span class="limit-icon">🌀</span>
-          <div>
-            <strong>Hallucination</strong>
-            <p>The AI may occasionally generate incorrect or made-up information. Always verify important facts.</p>
-          </div>
-        </div>
-        <div class="limitation-item">
-          <span class="limit-icon">🧠</span>
-          <div>
-            <strong>No Memory</strong>
-            <p>Each question is answered independently. The AI has no memory of previous questions in the session.</p>
-          </div>
-        </div>
-        <div class="limitation-item">
-          <span class="limit-icon">🔒</span>
-          <div>
-            <strong>No Access to Records</strong>
-            <p>The AI cannot access student records, grades, timetables, or any institutional systems.</p>
-          </div>
-        </div>
-        <div class="limitation-item">
-          <span class="limit-icon">🔗</span>
-          <div>
-            <strong>Resource URLs</strong>
-            <p>Suggested resource links are AI-generated. While typically accurate, some links may not always be exact.</p>
-          </div>
-        </div>
-      </div>
-    </section>
+    </aside>
 
   </main>
-
-  <!-- ===== FOOTER ===== -->
-  <footer class="site-footer">
-    <p>AI Learner Assistant &mdash; Built with Python, Flask &amp; Google Gemini &mdash; Academic Prototype</p>
-  </footer>
 
   <script src="script.js"></script>
 </body>

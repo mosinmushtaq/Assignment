@@ -1,93 +1,108 @@
-/**
- * AI Learner Assistant — Frontend Logic
- * =========================================
- * This file handles:
- *  1. Sending the student's question to our backend API (/api/chat)
- *  2. Receiving the structured JSON response
- *  3. Rendering the results in the 3 dashboard panels
- */
-
-// ── Configuration ──────────────────────────────────────────────
-// When running locally via Flask: backend is at http://localhost:5000
-// When deployed on Vercel: use a relative path (same domain)
 const API_URL = '/api/chat';
 
-// ── DOM References ──────────────────────────────────────────────
+// DOM Elements
 const questionInput = document.getElementById('question-input');
-const askBtn        = document.getElementById('ask-btn');
-const loadingEl     = document.getElementById('loading');
-const resultsEl     = document.getElementById('results');
+const askBtn = document.getElementById('ask-btn');
+const loadingEl = document.getElementById('loading');
+const chatHistoryEl = document.getElementById('chat-history');
+const heroHeader = document.getElementById('hero-header');
+const exampleChips = document.getElementById('example-chips');
 
-// ── Image State ─────────────────────────────────────────────────
-// Stores the base64 data URL of the uploaded image (null if no image)
+const sidebarPlaceholder = document.getElementById('sidebar-placeholder');
+const cardResources = document.getElementById('card-resources');
+const cardStatus = document.getElementById('card-status');
+
+const imageInput = document.getElementById('image-input');
+const imagePreviewWrap = document.getElementById('image-preview-wrap');
+const imagePreview = document.getElementById('image-preview');
+const uploadBtn = document.getElementById('upload-btn');
+
 let currentImageDataUrl = null;
+let chatHistory = []; // Stores conversation context for Gemini
 
-// ── Image Upload: called when user picks a file ─────────────────
-function handleImageUpload(event) {
-  const file = event.target.files[0];
+// Allow Enter to submit (Shift+Enter for new line)
+questionInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleAsk();
+  }
+});
+
+function setQuestion(q) {
+  questionInput.value = q;
+  handleAsk();
+}
+
+// ── Image Upload Handling ──────────────────────────────────────────
+async function handleImageUpload(e) {
+  const file = e.target.files[0];
   if (!file) return;
 
-  // Only accept image files
-  if (!file.type.startsWith('image/')) {
-    alert('Please upload an image file (JPG, PNG, etc.)');
-    return;
-  }
-
-  // Max size: 5MB
   if (file.size > 5 * 1024 * 1024) {
-    alert('Image is too large. Please use an image under 5MB.');
+    alert("Image is too large. Please upload an image smaller than 5MB.");
     return;
   }
 
-  // Convert to base64 data URL using FileReader
   const reader = new FileReader();
-  reader.onload = (e) => {
-    currentImageDataUrl = e.target.result; // e.g. "data:image/jpeg;base64,..."
-
-    // Show preview
-    document.getElementById('image-preview').src = currentImageDataUrl;
-    document.getElementById('image-preview-wrap').classList.remove('hidden');
-    document.getElementById('upload-btn').classList.add('has-image');
+  reader.onload = (evt) => {
+    currentImageDataUrl = evt.target.result;
+    imagePreview.src = currentImageDataUrl;
+    imagePreviewWrap.classList.remove('hidden');
+    uploadBtn.classList.add('has-image');
+    questionInput.focus();
   };
   reader.readAsDataURL(file);
 }
 
-// ── Remove Image: clears the uploaded image ──────────────────────
 function removeImage() {
   currentImageDataUrl = null;
-  document.getElementById('image-input').value = '';
-  document.getElementById('image-preview').src = '';
-  document.getElementById('image-preview-wrap').classList.add('hidden');
-  document.getElementById('upload-btn').classList.remove('has-image');
+  imageInput.value = '';
+  imagePreview.src = '';
+  imagePreviewWrap.classList.add('hidden');
+  uploadBtn.classList.remove('has-image');
 }
 
-// ── Utility: set an example question from a chip ───────────────
-function setQuestion(text) {
-  questionInput.value = text;
-  questionInput.focus();
-}
-
-// ── Main Handler: called when "Ask AI" is clicked ──────────────
+// ── Chat Interaction ───────────────────────────────────────────────
 async function handleAsk() {
   const question = questionInput.value.trim();
-
-  // Require at least a question OR an image
+  
   if (!question && !currentImageDataUrl) {
     questionInput.focus();
-    questionInput.style.borderColor = '#EF4444';
-    setTimeout(() => { questionInput.style.borderColor = ''; }, 1500);
     return;
   }
 
-  // Show loading, hide old results
+  // 1. Hide welcome text & chips on first message
+  if (chatHistory.length === 0) {
+    heroHeader.style.display = 'none';
+    exampleChips.style.display = 'none';
+  }
+
+  // 2. Add User Message to UI
+  appendUserMessage(question || "Attached an image.", currentImageDataUrl);
+  
+  // 3. Update internal chat history for NIM
+  // We only send text in the history array, the image is passed separately to be injected into the latest message by the backend.
+  chatHistory.push({
+    role: "user",
+    content: question || "Describe and explain what is shown in this image."
+  });
+
+  const payloadImage = currentImageDataUrl; // Capture it before clearing
+
+  // Clear inputs
+  questionInput.value = '';
+  removeImage();
+  questionInput.style.height = 'auto'; // reset textarea height
+
+  // 4. Show Loading
   setLoading(true);
-  hideResults();
 
   try {
-    // Send question (and optional image) to our Python backend
-    const payload = { question: question || 'Describe and explain what is shown in this image.' };
-    if (currentImageDataUrl) {
-      payload.image = currentImageDataUrl; // base64 data URL
+    const payload = { 
+      messages: chatHistory 
+    };
+    if (payloadImage) {
+      payload.image = payloadImage;
     }
 
     const response = await fetch(API_URL, {
@@ -96,74 +111,115 @@ async function handleAsk() {
       body: JSON.stringify(payload)
     });
 
-    // Try to parse the response body regardless of status
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      // Show the actual server error message if available
-      const msg = data?.error || `Server error ${response.status}: ${response.statusText}`;
-      showError(msg);
-      console.error('Server error:', response.status, data);
+      const msg = data?.error || `Server error ${response.status}`;
+      appendSystemError(msg);
+      // Remove the last user message from history so they can retry
+      chatHistory.pop();
       return;
     }
 
     if (data?.error) {
-      showError(data.error);
+      appendSystemError(data.error);
+      chatHistory.pop();
     } else {
-      renderResults(data);
+      // Success!
+      // Add assistant's answer to internal history
+      chatHistory.push({
+        role: "assistant",
+        content: JSON.stringify(data) // Storing JSON back so it remembers its decisions
+      });
+
+      // Update UI
+      appendModelMessage(data);
+      updateSidebar(data);
     }
 
   } catch (err) {
-    // Only a true network failure reaches here
-    showError('Network error — could not reach the server. Is it running?');
+    appendSystemError('Network error — could not reach the server.');
     console.error(err);
+    chatHistory.pop();
   } finally {
     setLoading(false);
+    scrollToBottom();
   }
 }
 
-// ── Render: populate the 3 dashboard panels ────────────────────
-function renderResults(data) {
-  renderAnswerPanel(data);
+// ── UI Appending Functions ────────────────────────────────────────
+function appendUserMessage(text, imageDataUrl) {
+  const div = document.createElement('div');
+  div.className = 'message-wrapper user';
+  
+  let imgHtml = '';
+  if (imageDataUrl) {
+    imgHtml = `<img src="${imageDataUrl}" class="chat-image-attachment" alt="User upload" />`;
+  }
+
+  div.innerHTML = `
+    <div class="message user">
+      ${imgHtml}
+      <p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>
+    </div>
+  `;
+  chatHistoryEl.appendChild(div);
+  scrollToBottom();
+}
+
+function appendModelMessage(data) {
+  const div = document.createElement('div');
+  div.className = 'message-wrapper model';
+
+  let contentHtml = '';
+  if (data.can_ai_answer) {
+    contentHtml = `<p>${escapeHtml(data.answer).replace(/\n/g, '<br>')}</p>`;
+  } else {
+    // Escalate style
+    contentHtml = `
+      <p><strong>Query Escalated</strong></p>
+      <p class="message-escalated">This requires attention from your academic team. See the Query Status panel for next steps.</p>
+    `;
+  }
+
+  div.innerHTML = `
+    <div class="message model">
+      ${contentHtml}
+    </div>
+  `;
+  chatHistoryEl.appendChild(div);
+}
+
+function appendSystemError(text) {
+  const div = document.createElement('div');
+  div.className = 'message-wrapper model';
+  div.innerHTML = `
+    <div class="message model" style="border-color: #EF4444; background: #FEF2F2;">
+      <p style="color: #B91C1C;"><strong>Error:</strong> ${escapeHtml(text)}</p>
+    </div>
+  `;
+  chatHistoryEl.appendChild(div);
+}
+
+// ── Sidebar Updating ─────────────────────────────────────────────
+function updateSidebar(data) {
+  sidebarPlaceholder.classList.add('hidden');
+  cardResources.classList.remove('hidden');
+  cardStatus.classList.remove('hidden');
+
   renderResourcesPanel(data);
   renderStatusPanel(data);
-
-  // Show the results section with animation
-  resultsEl.classList.remove('hidden');
-  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// Panel 1: AI Answer
-function renderAnswerPanel(data) {
-  const body  = document.getElementById('answer-body');
-  const badge = document.getElementById('answer-badge');
-
-  if (data.can_ai_answer) {
-    // Convert newlines to <br> for readability
-    const formatted = escapeHtml(data.answer).replace(/\n/g, '<br>');
-    body.innerHTML = `<p>${formatted}</p>`;
-    badge.textContent = 'AI Generated';
-    badge.className = 'badge badge-ai';
-  } else {
-    body.innerHTML = `
-      <p class="escalate-note">
-        This question involves matters that require attention from your academic team.
-        The AI has escalated your query — please see the <strong>Query Status</strong> panel for next steps.
-      </p>`;
-    badge.textContent = 'Escalated';
-    badge.className = 'badge badge-escalate';
-  }
-}
-
-// Panel 2: Resources
 function renderResourcesPanel(data) {
-  const body        = document.getElementById('resources-body');
-  const topicBadge  = document.getElementById('topic-badge');
+  const body = document.getElementById('resources-body');
+  const topicBadge = document.getElementById('topic-badge');
 
-  // Show the topic label
   if (data.topic) {
     topicBadge.textContent = data.topic;
-    topicBadge.className = 'badge badge-topic';
+    topicBadge.style.display = 'inline-block';
+  } else {
+    topicBadge.style.display = 'none';
   }
 
   if (data.resources && data.resources.length > 0) {
@@ -175,22 +231,18 @@ function renderResourcesPanel(data) {
         <p>${escapeHtml(r.description)}</p>
       </li>
     `).join('');
-
     body.innerHTML = `<ul class="resource-list">${items}</ul>`;
   } else {
-    body.innerHTML = '<p style="color:#64748B;font-size:0.9rem;font-style:italic;">None needed (general knowledge or conversational chat).</p>';
+    body.innerHTML = '<p style="color:#64748B;font-size:0.85rem;font-style:italic;">None needed (general knowledge or conversational chat).</p>';
   }
 }
 
-// Panel 3: Escalation / Status
 function renderStatusPanel(data) {
-  const body      = document.getElementById('status-body');
-  const card      = document.getElementById('card-status');
-  const iconEl    = document.getElementById('status-icon');
+  const body = document.getElementById('status-body');
+  const iconEl = document.getElementById('status-icon');
 
   if (data.can_ai_answer) {
-    // AI handled it — all green
-    card.className = 'result-card card-status safe';
+    cardStatus.className = 'result-card card-status safe';
     iconEl.textContent = '✅';
     body.innerHTML = `
       <div class="status-content">
@@ -198,69 +250,54 @@ function renderStatusPanel(data) {
           <span class="status-dot dot-green"></span>
           AI can handle this
         </div>
-        <div class="status-reason">
-          Your question has been answered by the AI assistant above. No human intervention is required.
-        </div>
-      </div>`;
+        <div class="status-reason">You do not need a faculty member for this question.</div>
+      </div>
+    `;
   } else {
-    // Escalation needed — show reason and contact info
-    card.className = 'result-card card-status escalate';
+    cardStatus.className = 'result-card card-status escalate';
     iconEl.textContent = '🚨';
     body.innerHTML = `
       <div class="status-content">
-        <div class="status-indicator">
+        <div class="status-indicator" style="color: #EF4444;">
           <span class="status-dot dot-red"></span>
           Escalate to Faculty
         </div>
         <div class="status-reason">
-          ${escapeHtml(data.escalate_reason || 'This query requires a human academic team member.')}
+          <strong>Reason:</strong> ${escapeHtml(data.escalate_reason || 'Administrative or personal matter.')}
         </div>
         <div class="contact-info">
           <strong>What to do next:</strong>
           Contact your course lecturer, module tutor, or the student services office directly.
-          You can also raise a formal query through your institution's student portal.
         </div>
-      </div>`;
+      </div>
+    `;
   }
 }
 
-// ── UI State Helpers ───────────────────────────────────────────
+// ── Utils ────────────────────────────────────────────────────────
 function setLoading(isLoading) {
-  loadingEl.classList.toggle('hidden', !isLoading);
-  askBtn.disabled = isLoading;
-  askBtn.querySelector('.btn-text').textContent = isLoading ? 'Thinking...' : 'Ask AI';
+  if (isLoading) {
+    loadingEl.classList.remove('hidden');
+    askBtn.disabled = true;
+    questionInput.disabled = true;
+  } else {
+    loadingEl.classList.add('hidden');
+    askBtn.disabled = false;
+    questionInput.disabled = false;
+    questionInput.focus();
+  }
 }
 
-function hideResults() {
-  resultsEl.classList.add('hidden');
-  // Remove any previous error
-  const oldErr = document.querySelector('.error-msg');
-  if (oldErr) oldErr.remove();
+function scrollToBottom() {
+  chatHistoryEl.scrollTo({
+    top: chatHistoryEl.scrollHeight,
+    behavior: 'smooth'
+  });
 }
 
-function showError(message) {
-  const main = document.querySelector('main');
-  const err = document.createElement('div');
-  err.className = 'error-msg';
-  err.textContent = `⚠️ ${message}`;
-  // Insert after the loading state
-  loadingEl.after(err);
-}
-
-// ── Security: prevent XSS when inserting user/AI content ───────
 function escapeHtml(str) {
   if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  const div = document.createElement('div');
+  div.innerText = str;
+  return div.innerHTML;
 }
-
-// ── Allow pressing Enter (+ Shift+Enter for newline) ──────────
-questionInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    handleAsk();
-  }
-});
