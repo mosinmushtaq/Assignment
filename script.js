@@ -18,6 +18,49 @@ const askBtn        = document.getElementById('ask-btn');
 const loadingEl     = document.getElementById('loading');
 const resultsEl     = document.getElementById('results');
 
+// ── Image State ─────────────────────────────────────────────────
+// Stores the base64 data URL of the uploaded image (null if no image)
+let currentImageDataUrl = null;
+
+// ── Image Upload: called when user picks a file ─────────────────
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Only accept image files
+  if (!file.type.startsWith('image/')) {
+    alert('Please upload an image file (JPG, PNG, etc.)');
+    return;
+  }
+
+  // Max size: 5MB
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image is too large. Please use an image under 5MB.');
+    return;
+  }
+
+  // Convert to base64 data URL using FileReader
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    currentImageDataUrl = e.target.result; // e.g. "data:image/jpeg;base64,..."
+
+    // Show preview
+    document.getElementById('image-preview').src = currentImageDataUrl;
+    document.getElementById('image-preview-wrap').classList.remove('hidden');
+    document.getElementById('upload-btn').classList.add('has-image');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Remove Image: clears the uploaded image ──────────────────────
+function removeImage() {
+  currentImageDataUrl = null;
+  document.getElementById('image-input').value = '';
+  document.getElementById('image-preview').src = '';
+  document.getElementById('image-preview-wrap').classList.add('hidden');
+  document.getElementById('upload-btn').classList.remove('has-image');
+}
+
 // ── Utility: set an example question from a chip ───────────────
 function setQuestion(text) {
   questionInput.value = text;
@@ -28,8 +71,8 @@ function setQuestion(text) {
 async function handleAsk() {
   const question = questionInput.value.trim();
 
-  // Don't proceed if empty
-  if (!question) {
+  // Require at least a question OR an image
+  if (!question && !currentImageDataUrl) {
     questionInput.focus();
     questionInput.style.borderColor = '#EF4444';
     setTimeout(() => { questionInput.style.borderColor = ''; }, 1500);
@@ -41,11 +84,16 @@ async function handleAsk() {
   hideResults();
 
   try {
-    // Send question to our Python backend
+    // Send question (and optional image) to our Python backend
+    const payload = { question: question || 'Describe and explain what is shown in this image.' };
+    if (currentImageDataUrl) {
+      payload.image = currentImageDataUrl; // base64 data URL
+    }
+
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question })
+      body: JSON.stringify(payload)
     });
 
     // Try to parse the response body regardless of status

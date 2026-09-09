@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -40,14 +40,39 @@
 
       <!-- Query Input -->
       <div class="input-card">
+
+        <!-- Image preview (hidden until image is selected) -->
+        <div id="image-preview-wrap" class="image-preview-wrap hidden">
+          <img id="image-preview" class="image-preview" alt="Uploaded image preview" />
+          <button class="remove-image-btn" onclick="removeImage()" title="Remove image">✕</button>
+          <span class="image-label">📎 Image attached</span>
+        </div>
+
         <div class="input-row">
-          <textarea
-            id="question-input"
-            class="question-textarea"
-            placeholder="e.g. What is the difference between machine learning and deep learning?"
-            rows="3"
-            aria-label="Enter your academic question"
-          ></textarea>
+          <div class="textarea-wrap">
+            <!-- Hidden file input -->
+            <input
+              type="file"
+              id="image-input"
+              accept="image/*"
+              style="display:none"
+              onchange="handleImageUpload(event)"
+            />
+            <!-- Upload trigger button -->
+            <button
+              class="upload-btn"
+              onclick="document.getElementById('image-input').click()"
+              title="Attach an image (photo of notes, question, diagram etc.)"
+              id="upload-btn"
+            >🖼️</button>
+            <textarea
+              id="question-input"
+              class="question-textarea"
+              placeholder="e.g. What is the difference between machine learning and deep learning? (you can also attach an image)"
+              rows="3"
+              aria-label="Enter your academic question"
+            ></textarea>
+          </div>
           <button id="ask-btn" class="ask-btn" onclick="handleAsk()">
             <span class="btn-text">Ask AI</span>
             <span class="btn-icon">→</span>
@@ -61,6 +86,7 @@
           <button class="chip" onclick="setQuestion('Can you explain Big O notation?')">Big O notation</button>
           <button class="chip" onclick="setQuestion('I want to appeal my exam grade.')">Appeal exam grade</button>
           <button class="chip" onclick="setQuestion('What are the types of machine learning?')">Types of ML</button>
+          <button class="chip" onclick="setQuestion('Explain what you see in this image.')">📎 Upload &amp; ask</button>
         </div>
       </div>
     </section>

@@ -28,7 +28,8 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 # --- Groq Setup ---
 # The API key is stored as an environment variable (never hardcoded)
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL = "qwen/qwen3.8-27b"  # Confirmed available on this Groq API key
+MODEL        = "qwen/qwen3.8-27b"      # Text-only questions
+VISION_MODEL = "openai/gpt-oss-120b"   # Vision model for image questions
 
 # --- System Prompt ---
 # This is the instruction we give the AI every time a student asks a question.
@@ -91,18 +92,38 @@ def chat():
         return _cors_response(jsonify({'error': 'Please provide a question.'}), 400)
 
     question = data['question'].strip()
+    image_data = data.get('image')  # Optional: base64 data URL e.g. "data:image/jpeg;base64,..."
 
     try:
-        # Call Groq with JSON mode — guarantees valid JSON output every time
-        completion = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": f"Student question: {question}"}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.4
-        )
+        if image_data:
+            # ── VISION REQUEST: image + text ──────────────────────────────
+            # Use the vision-capable model and send a multimodal message
+            completion = client.chat.completions.create(
+                model=VISION_MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text",      "text": f"Student question: {question}"},
+                            {"type": "image_url", "image_url": {"url": image_data}}
+                        ]
+                    }
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.4
+            )
+        else:
+            # ── TEXT-ONLY REQUEST ─────────────────────────────────────────
+            completion = client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": f"Student question: {question}"}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.4
+            )
 
         raw_text = completion.choices[0].message.content.strip()
         result = json.loads(raw_text)
