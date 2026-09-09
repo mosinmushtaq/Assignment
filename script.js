@@ -178,7 +178,7 @@ function renderResourcesPanel(data) {
 
     body.innerHTML = `<ul class="resource-list">${items}</ul>`;
   } else {
-    body.innerHTML = '<p style="color:#94A3B8;font-size:0.875rem;">No resources available for this query.</p>';
+    body.innerHTML = '<p style="color:#64748B;font-size:0.9rem;font-style:italic;">None needed (general knowledge or conversational chat).</p>';
   }
 }
 

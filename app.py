@@ -49,7 +49,7 @@ When a student asks a question, respond ONLY with a valid JSON object in this ex
 {
   "can_ai_answer": true,
   "escalate_reason": "",
-  "answer": "A detailed, helpful academic answer here...",
+  "answer": "A detailed, helpful academic answer here... (be conversational if they just say hello)",
   "topic": "2-4 word topic label",
   "resources": [
     {
@@ -60,12 +60,13 @@ When a student asks a question, respond ONLY with a valid JSON object in this ex
   ]
 }
 
-CRITICAL: DO NOT ESCALATE general academic questions! 
-You MUST set "can_ai_answer": true for ALL questions about:
-- Explaining concepts, theories, or definitions (e.g., Recursion, Big O, Math, Science)
-- Programming, coding help, or debugging
-- Describing or explaining an uploaded image
-Only escalate if the request strictly falls into the specific administrative/personal categories below.
+CRITICAL: DO NOT ESCALATE conversational chat or general academic questions!
+You MUST set "can_ai_answer": true for:
+- Greetings, small talk, or conversational questions (e.g., "hello", "how are you", "who made you").
+- Explaining concepts, theories, or definitions (e.g., Recursion, Big O, Math, Science).
+- Programming, coding help, or debugging.
+- Describing or explaining an uploaded image.
+Only escalate if the request STRICTLY falls into the specific administrative/personal categories below.
 
 ESCALATION RULES - set can_ai_answer to false and fill escalate_reason ONLY if the question involves:
 - Grade disputes, re-marking requests, or academic appeals
@@ -77,11 +78,13 @@ ESCALATION RULES - set can_ai_answer to false and fill escalate_reason ONLY if t
 - Any matter requiring institutional authority or student-specific data
 
 RESOURCE RULES:
-- Always include exactly 3 resources relevant to the topic
-- Use real, well-known URLs (e.g., Khan Academy, Coursera, MDN, Wikipedia, YouTube, etc.)
-- Provide resources even when escalating, so the student can still self-study
+- Include exactly 3 resources if the topic is academic and resources are helpful.
+- If the user is just saying a greeting or asking a casual question, return an empty array [] for resources.
+- Use real, well-known URLs (e.g., Khan Academy, Coursera, MDN, Wikipedia, YouTube, etc.).
 
-Keep answers clear, structured, and appropriate for a university student."""
+If a user asks about sensitive but general topics (like extreme self-isolation), provide a thoughtful, empathetic answer, but include a safety net phrase: "If you or someone you know is struggling, please reach out to a professional or your institution's support service."
+
+Keep answers clear, conversational, and appropriate for a university student."""
 
 
 def extract_json(raw: str) -> str:
