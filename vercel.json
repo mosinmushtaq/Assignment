@@ -1,15 +1,1 @@
-﻿{
-  "version": 2,
-  "builds": [
-    { "src": "api/chat.py", "use": "@vercel/python" },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "style.css",  "use": "@vercel/static" },
-    { "src": "script.js",  "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/chat",  "dest": "api/chat.py" },
-    { "src": "/style.css", "dest": "/style.css" },
-    { "src": "/script.js", "dest": "/script.js" },
-    { "src": "/(.*)",      "dest": "/index.html" }
-  ]
-}
+﻿{}
