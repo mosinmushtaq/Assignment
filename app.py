@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Learner Assistant - Main Application
 =========================================
 Flask app served at the project root.
@@ -29,7 +29,7 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 # --- Gemini Setup ---
 # The API key is stored as an environment variable (never hardcoded)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 # --- System Prompt ---
 # This is the instruction we give Gemini every time a student asks a question.
