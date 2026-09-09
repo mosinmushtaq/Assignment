@@ -1,19 +1,21 @@
-"""
+﻿"""
 AI Learner Assistant - Main Application
 =========================================
 Flask app served at the project root.
 Vercel auto-detects app.py as the Flask entrypoint.
 
-Uses Groq (LLaMA 3.3 70B) to:
+Uses NVIDIA NIM (Nemotron Nano Omni) to:
   1. Classify whether a question can be answered by AI or needs a human
   2. Generate an academic answer (if AI can handle it)
   3. Recommend relevant learning resources based on the topic
+  4. Understand images (diagrams, notes, questions) via multimodal input
 """
 
 import os
 import json
+import re
+import requests as http_requests
 from flask import Flask, request, jsonify
-from groq import Groq
 from dotenv import load_dotenv
 
 # Load .env file automatically when running locally
@@ -25,18 +27,25 @@ load_dotenv()
 # from the same root directory as app.py
 app = Flask(__name__, static_folder='.', static_url_path='')
 
-# --- Groq Setup ---
-# The API key is stored as an environment variable (never hardcoded)
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL        = "qwen/qwen3.8-27b"      # Text-only questions
-VISION_MODEL = "openai/gpt-oss-120b"   # Vision model for image questions
+# --- NVIDIA NIM Setup ---
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY")
+NIM_URL        = "https://integrate.api.nvidia.com/v1/chat/completions"
+MODEL          = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+
+def nim_headers():
+    """Build request headers for the NVIDIA NIM API."""
+    return {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Accept":        "application/json",
+        "Content-Type":  "application/json",
+    }
 
 # --- System Prompt ---
 # This is the instruction we give the AI every time a student asks a question.
 # We ask it to return structured JSON so our code can parse and display it cleanly.
 SYSTEM_PROMPT = """You are an AI Learner Assistant helping university students with academic and course-related queries.
 
-When a student asks a question, respond ONLY with a valid JSON object in this exact format:
+When a student asks a question, respond ONLY with a valid JSON object in this exact format (no extra text, no markdown, no thinking):
 {
   "can_ai_answer": true,
   "escalate_reason": "",
@@ -68,6 +77,39 @@ RESOURCE RULES:
 Keep answers clear, structured, and appropriate for a university student."""
 
 
+def extract_json(raw: str) -> str:
+    """
+    Clean up the model output before JSON parsing.
+    Reasoning models (like Nemotron) often prefix their answer with <think>...</think> blocks.
+    We strip those, then strip any markdown code fences.
+    """
+    # Remove <think>...</think> reasoning sections
+    raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL)
+    # Remove markdown code fences (```json ... ```)
+    raw = re.sub(r'^```(?:json)?\s*', '', raw.strip())
+    raw = re.sub(r'\s*```$', '', raw)
+    return raw.strip()
+
+
+def call_nim(messages: list) -> str:
+    """
+    Send a chat request to NVIDIA NIM and return the model's response text.
+    Works for both text-only and multimodal (image + text) messages.
+    """
+    payload = {
+        "model":            MODEL,
+        "messages":         messages,
+        "max_tokens":       4096,       # Enough for a detailed academic answer
+        "reasoning_budget": 1024,       # Controls how much the model "thinks" before answering
+        "stream":           False,
+        "temperature":      0.6,
+        "top_p":            0.95,
+    }
+    resp = http_requests.post(NIM_URL, headers=nim_headers(), json=payload, timeout=60)
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+
 @app.route('/')
 def index():
     """Serve the main HTML page."""
@@ -78,7 +120,7 @@ def index():
 def chat():
     """
     Main API endpoint.
-    Accepts: POST { "question": "..." }
+    Accepts: POST { "question": "...", "image": "data:image/...;base64,..." (optional) }
     Returns: JSON { can_ai_answer, answer, escalate_reason, topic, resources }
     """
 
@@ -86,47 +128,38 @@ def chat():
     if request.method == 'OPTIONS':
         return _cors_response(jsonify({}))
 
-    # Parse the incoming question
+    # Parse the incoming request body
     data = request.get_json(silent=True)
     if not data or not data.get('question', '').strip():
         return _cors_response(jsonify({'error': 'Please provide a question.'}), 400)
 
-    question = data['question'].strip()
+    question   = data['question'].strip()
     image_data = data.get('image')  # Optional: base64 data URL e.g. "data:image/jpeg;base64,..."
 
     try:
         if image_data:
-            # ── VISION REQUEST: image + text ──────────────────────────────
-            # Use the vision-capable model and send a multimodal message
-            completion = client.chat.completions.create(
-                model=VISION_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text",      "text": f"Student question: {question}"},
-                            {"type": "image_url", "image_url": {"url": image_data}}
-                        ]
-                    }
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.4
-            )
+            # -- VISION REQUEST: image + text ---------------------------
+            # Nemotron Omni is multimodal — pass image as base64 data URL
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text",      "text": f"Student question: {question}"},
+                        {"type": "image_url", "image_url": {"url": image_data}}
+                    ]
+                }
+            ]
         else:
-            # ── TEXT-ONLY REQUEST ─────────────────────────────────────────
-            completion = client.chat.completions.create(
-                model=MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": f"Student question: {question}"}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.4
-            )
+            # -- TEXT-ONLY REQUEST --------------------------------------
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": f"Student question: {question}"}
+            ]
 
-        raw_text = completion.choices[0].message.content.strip()
-        result = json.loads(raw_text)
+        raw_text = call_nim(messages)
+        cleaned  = extract_json(raw_text)
+        result   = json.loads(cleaned)
 
         return _cors_response(jsonify(result))
 
@@ -143,7 +176,7 @@ def chat():
 
 def _cors_response(response, status=200):
     """Add CORS headers so the browser frontend can call this API."""
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin']  = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
     response.status_code = status
