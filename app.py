@@ -1,8 +1,10 @@
-"""
-AI Learner Assistant - Backend API
-===================================
-This Flask app runs as a Vercel Python serverless function at /api/chat.
-It uses Google Gemini to:
+﻿"""
+AI Learner Assistant - Main Application
+=========================================
+Flask app served at the project root.
+Vercel auto-detects app.py as the Flask entrypoint.
+
+Uses Google Gemini to:
   1. Classify whether a question can be answered by AI or needs a human
   2. Generate an academic answer (if AI can handle it)
   3. Recommend relevant learning resources based on the topic
@@ -20,8 +22,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- App Setup ---
-# When running locally: serves static files from the parent folder too
-app = Flask(__name__, static_folder='..', static_url_path='')
+# static_folder='.' means Flask serves index.html, style.css, script.js
+# from the same root directory as app.py
+app = Flask(__name__, static_folder='.', static_url_path='')
 
 # --- Gemini Setup ---
 # The API key is stored as an environment variable (never hardcoded)
@@ -67,7 +70,7 @@ Keep answers clear, structured, and appropriate for a university student."""
 
 @app.route('/')
 def index():
-    """Serve the main HTML page when running locally."""
+    """Serve the main HTML page."""
     return app.send_static_file('index.html')
 
 
